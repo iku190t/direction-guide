@@ -5,20 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="方向ガイド">
-  <meta name="theme-color" content="#0f1419">
+  <meta name="theme-color" content="#10151b">
   <title>方向ガイド</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0f1419;
+      --bg: #10151b;
       --panel: #171e25;
-      --line: #33404c;
-      --text: #f7fafc;
+      --line: #34424f;
+      --text: #f8fafc;
       --muted: #aeb8c3;
-      --red: #e64b4b;
-      --green: #35d08a;
-      --yellow: #ffd34f;
-      --blue: #62a8ff;
+      --red: #e94545;
+      --yellow: #ffd44d;
+      --ok: #3ddc97;
     }
 
     * { box-sizing: border-box; }
@@ -29,7 +28,6 @@
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0;
       -webkit-font-smoothing: antialiased;
       touch-action: manipulation;
     }
@@ -37,36 +35,36 @@
     main {
       width: min(680px, 100%);
       margin: 0 auto;
-      padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+      padding: max(10px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
       display: grid;
-      gap: 10px;
+      gap: 9px;
     }
 
     .top {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
     }
 
     h1 {
       margin: 0;
       font-size: 19px;
-      font-weight: 800;
+      font-weight: 850;
     }
 
     .status {
-      padding: 7px 10px;
+      min-width: 82px;
+      padding: 7px 9px;
       border: 1px solid var(--line);
       border-radius: 8px;
       color: var(--muted);
-      background: #11171d;
+      background: #121820;
       font-size: 13px;
-      min-width: 86px;
       text-align: center;
     }
 
-    .bigGuide {
+    .guide {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -74,14 +72,15 @@
       text-align: center;
     }
 
-    .bigGuide .mainText {
-      font-size: clamp(48px, 16vw, 84px);
+    .guideMain {
+      font-size: clamp(50px, 17vw, 90px);
       line-height: 1;
-      font-weight: 900;
+      font-weight: 950;
+      color: var(--yellow);
       font-variant-numeric: tabular-nums;
     }
 
-    .bigGuide .subText {
+    .guideSub {
       margin-top: 6px;
       color: var(--muted);
       font-size: 15px;
@@ -91,11 +90,11 @@
     .compassBox {
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #11171d;
+      background: #111820;
       padding: 10px;
       display: grid;
       justify-items: center;
-      gap: 8px;
+      gap: 7px;
     }
 
     .compass {
@@ -103,8 +102,8 @@
       width: min(92vw, 430px);
       aspect-ratio: 1;
       border-radius: 50%;
-      background: #10171e;
-      border: 3px solid #42505e;
+      border: 3px solid #435260;
+      background: #0f151c;
       overflow: hidden;
       touch-action: none;
       user-select: none;
@@ -119,119 +118,88 @@
 
     .tick {
       position: absolute;
+      left: 50%;
+      top: 50%;
       width: 2px;
-      height: 10%;
-      margin-left: -1px;
-      background: #93a0ad;
+      height: 9%;
+      background: #8e9baa;
       transform-origin: 50% 50%;
     }
 
     .tick.major {
       width: 4px;
-      height: 13%;
-      margin-left: -2px;
+      height: 12%;
       background: #e7edf3;
     }
 
-    .tick.north {
-      background: var(--red);
-      height: 16%;
+    .tick.zero {
       width: 6px;
-      margin-left: -3px;
+      height: 15%;
+      background: var(--yellow);
     }
 
-    .label {
+    .relLabel, .northLabel {
       position: absolute;
-      width: 48px;
+      left: 50%;
+      top: 50%;
+      width: 54px;
       height: 24px;
       display: grid;
       place-items: center;
       font-weight: 900;
-      font-size: 18px;
-      color: #f4f8fb;
       font-variant-numeric: tabular-nums;
+      transform-origin: center;
+      pointer-events: none;
     }
 
-    .label.north { color: var(--red); font-size: 24px; }
-
-    .outerHint {
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-      line-height: 1.35;
+    .relLabel {
+      color: #e9eef4;
+      font-size: 14px;
     }
 
-    .topIndex {
+    .northLabel {
+      color: var(--red);
+      font-size: 24px;
+      z-index: 3;
+    }
+
+    .topMark {
       position: absolute;
       left: 50%;
-      top: 5px;
+      top: 4px;
       width: 0;
       height: 0;
-      border-left: 14px solid transparent;
-      border-right: 14px solid transparent;
-      border-top: 24px solid var(--text);
       transform: translateX(-50%);
-      z-index: 10;
-    }
-
-    .currentNeedle, .targetNeedle, .selectNeedle {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform-origin: 50% 100%;
-      border-radius: 999px;
-      z-index: 6;
-    }
-
-    .currentNeedle {
-      width: 8px;
-      height: 39%;
-      margin-left: -4px;
-      margin-top: -39%;
-      background: var(--green);
-      box-shadow: 0 0 18px rgba(53,208,138,.45);
-    }
-
-    .currentNeedle::before {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: -16px;
-      transform: translateX(-50%);
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-bottom: 22px solid var(--green);
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-top: 26px solid var(--text);
+      z-index: 8;
     }
 
     .targetNeedle {
-      width: 6px;
-      height: 45%;
-      margin-left: -3px;
-      margin-top: -45%;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;
+      height: 43%;
+      margin-left: -4px;
+      margin-top: -43%;
+      border-radius: 999px;
       background: var(--yellow);
-      z-index: 5;
+      transform-origin: 50% 100%;
+      z-index: 6;
+      box-shadow: 0 0 18px rgba(255, 212, 77, .42);
     }
 
-    .targetNeedle::before, .selectNeedle::before {
+    .targetNeedle::before {
       content: "";
       position: absolute;
       left: 50%;
-      top: -12px;
+      top: -17px;
       transform: translateX(-50%);
-      border-left: 11px solid transparent;
-      border-right: 11px solid transparent;
-      border-bottom: 19px solid currentColor;
-    }
-
-    .selectNeedle {
-      width: 4px;
-      height: 48%;
-      margin-left: -2px;
-      margin-top: -48%;
-      background: var(--blue);
-      color: var(--blue);
-      z-index: 4;
-      opacity: .9;
+      border-left: 13px solid transparent;
+      border-right: 13px solid transparent;
+      border-bottom: 24px solid var(--yellow);
     }
 
     .center {
@@ -242,8 +210,8 @@
       aspect-ratio: 1;
       transform: translate(-50%, -50%);
       border-radius: 50%;
-      background: #151d24;
-      border: 2px solid #465462;
+      background: #151d25;
+      border: 2px solid #465562;
       z-index: 7;
       display: grid;
       place-items: center;
@@ -252,30 +220,37 @@
     }
 
     .center .angle {
-      font-size: clamp(28px, 10vw, 44px);
+      font-size: clamp(31px, 10vw, 48px);
       line-height: 1;
-      font-weight: 900;
+      font-weight: 950;
       font-variant-numeric: tabular-nums;
     }
 
-    .center .cap {
+    .center .caption {
+      margin-top: 4px;
       color: var(--muted);
       font-size: 12px;
-      margin-top: 4px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.35;
     }
 
     .panels {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
 
     .panel {
       border: 1px solid var(--line);
-      background: var(--panel);
       border-radius: 8px;
+      background: var(--panel);
+      min-height: 66px;
       padding: 9px;
-      min-height: 70px;
     }
 
     .panel .k {
@@ -285,9 +260,9 @@
 
     .panel .v {
       margin-top: 4px;
-      font-size: 26px;
+      font-size: 28px;
       line-height: 1;
-      font-weight: 850;
+      font-weight: 900;
       font-variant-numeric: tabular-nums;
     }
 
@@ -304,29 +279,27 @@
 
     button, input {
       width: 100%;
-      min-height: 48px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
       color: var(--text);
       font: inherit;
+      font-weight: 850;
+    }
+
+    button {
+      min-height: 50px;
       font-size: 17px;
-      font-weight: 800;
     }
 
     button.primary {
-      background: #123627;
-      border-color: #28764f;
+      background: #3b3011;
+      border-color: #8d7021;
     }
 
-    button.yellow {
-      background: #3e3311;
-      border-color: #82691f;
-    }
-
-    button.muted {
-      color: var(--muted);
-      font-weight: 700;
+    button.ok {
+      background: #143526;
+      border-color: #287c54;
     }
 
     label {
@@ -343,10 +316,21 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .tapStart {
+      display: none;
+      border: 1px solid #7b6321;
+      background: #352b12;
+      color: var(--text);
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 850;
+    }
+
+    .tapStart.show { display: block; }
+
     @media (max-width: 430px) {
-      main { padding-left: 8px; padding-right: 8px; gap: 8px; }
-      .panels { grid-template-columns: 1fr; }
-      .row { grid-template-columns: 1fr; }
+      .row, .panels { grid-template-columns: 1fr; }
       .panel { min-height: 58px; }
     }
   </style>
@@ -355,59 +339,52 @@
   <main>
     <div class="top">
       <h1>方向ガイド</h1>
-      <div id="status" class="status">未開始</div>
+      <div id="status" class="status">起動中</div>
     </div>
 
-    <section class="bigGuide">
-      <div id="guideMain" class="mainText">開始</div>
-      <div id="guideSub" class="subText">センサー開始を押してください</div>
+    <div id="tapStart" class="tapStart">ここをタップしてセンサー開始</div>
+
+    <section class="guide">
+      <div id="guideMain" class="guideMain">---</div>
+      <div id="guideSub" class="guideSub">機械方向を0°にセットしてください</div>
     </section>
 
     <section class="compassBox">
       <div id="compass" class="compass">
         <div id="ring" class="ring"></div>
-        <div class="topIndex"></div>
+        <div id="northLayer"></div>
+        <div class="topMark"></div>
         <div id="targetNeedle" class="targetNeedle"></div>
-        <div id="selectNeedle" class="selectNeedle"></div>
-        <div id="currentNeedle" class="currentNeedle"></div>
         <div class="center">
           <div>
             <div id="centerAngle" class="angle">---°</div>
-            <div class="cap">現在方向</div>
+            <div class="caption">現在</div>
           </div>
         </div>
       </div>
-      <div class="outerHint">一本指: 青い仮目標を合わせる / 二本指: 目盛りを回して機械方向を0°に合わせる</div>
+      <div class="hint">黄色線をタップ/なぞって目標方向へ合わせます。周りの数字は機械方向を0°にした相対角度です。</div>
     </section>
 
     <section class="panels">
       <div class="panel">
-        <div class="k">現在</div>
+        <div class="k">現在方向</div>
         <div id="currentValue" class="v">---°</div>
       </div>
       <div class="panel">
-        <div class="k">仮目標</div>
-        <div id="selectValue" class="v">300°</div>
-      </div>
-      <div class="panel">
-        <div class="k">セット済み目標</div>
+        <div class="k">黄色線の目標</div>
         <div id="targetValue" class="v">300°</div>
       </div>
     </section>
 
     <section class="controls">
-      <button id="startBtn" class="primary">センサー開始</button>
+      <button id="zeroBtn" class="primary">今の機械方向を0°にする</button>
       <div class="row">
-        <button id="targetBtn" class="yellow">目標をセット</button>
-        <button id="voiceBtn">音声: ON</button>
+        <button id="voiceBtn" class="ok">音声: ON</button>
+        <button id="stopVoiceBtn">音声を止める</button>
       </div>
       <div class="row">
-        <button id="zeroBtn">今の向きを0°</button>
-        <button id="stopVoiceBtn" class="muted">音声を止める</button>
-      </div>
-      <div class="row">
-        <label>仮目標を数字で入力
-          <input id="selectInput" type="number" min="0" max="359" step="1" inputmode="numeric" value="300">
+        <label>黄色線の角度
+          <input id="targetInput" type="number" min="0" max="359" step="1" inputmode="numeric" value="300">
         </label>
         <label>読み上げ開始
           <input id="thresholdInput" type="number" min="1" max="90" step="1" inputmode="numeric" value="2">
@@ -418,43 +395,35 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const ring = $("ring");
     const compass = $("compass");
+    const ring = $("ring");
+    const northLayer = $("northLayer");
+    const targetNeedle = $("targetNeedle");
     const statusEl = $("status");
     const guideMain = $("guideMain");
     const guideSub = $("guideSub");
-    const currentNeedle = $("currentNeedle");
-    const targetNeedle = $("targetNeedle");
-    const selectNeedle = $("selectNeedle");
-    const currentValue = $("currentValue");
-    const selectValue = $("selectValue");
-    const targetValue = $("targetValue");
     const centerAngle = $("centerAngle");
-    const selectInput = $("selectInput");
+    const currentValue = $("currentValue");
+    const targetValue = $("targetValue");
+    const targetInput = $("targetInput");
     const thresholdInput = $("thresholdInput");
     const voiceBtn = $("voiceBtn");
+    const tapStart = $("tapStart");
 
     const state = {
-      started: false,
-      rawHeading: null,
       heading: null,
+      rawHeading: null,
       zeroHeading: Number(localStorage.getItem("zeroHeading")) || 0,
-      bezelOffset: Number(localStorage.getItem("bezelOffset")) || 0,
-      selected: Number(localStorage.getItem("selectedAngle")) || 300,
       target: Number(localStorage.getItem("targetAngle")) || 300,
       threshold: Number(localStorage.getItem("voiceThreshold")) || 2,
       voice: localStorage.getItem("voiceOn") !== "0",
-      currentVisual: 0,
       targetVisual: 300,
-      selectVisual: 300,
       lastSpeechAt: 0,
       lastSpeechKey: "",
-      pointers: new Map(),
-      gestureStartAngle: 0,
-      gestureStartBezel: 0
+      sensorStarted: false
     };
 
-    selectInput.value = state.selected;
+    targetInput.value = Math.round(state.target);
     thresholdInput.value = state.threshold;
 
     function norm(deg) {
@@ -473,18 +442,22 @@
       return Math.round(norm(deg));
     }
 
-    function angleFromPoint(clientX, clientY) {
-      const rect = compass.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      return norm(Math.atan2(clientX - cx, cy - clientY) * 180 / Math.PI);
+    function readHeading(event) {
+      if (typeof event.webkitCompassHeading === "number") return event.webkitCompassHeading;
+      if (typeof event.alpha === "number") return norm(360 - event.alpha);
+      return null;
     }
 
-    function twoFingerAngle() {
-      const pts = [...state.pointers.values()];
-      const a = pts[0];
-      const b = pts[1];
-      return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    function relativeHeading() {
+      if (state.heading == null) return null;
+      return norm(state.heading - state.zeroHeading);
+    }
+
+    function angleFromPoint(clientX, clientY) {
+      const r = compass.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      return norm(Math.atan2(clientX - cx, cy - clientY) * 180 / Math.PI);
     }
 
     function speak(text, force = false) {
@@ -503,81 +476,66 @@
 
     function stopSpeech() {
       if ("speechSynthesis" in window) speechSynthesis.cancel();
-      state.lastSpeechKey = "";
       state.lastSpeechAt = 0;
+      state.lastSpeechKey = "";
     }
 
-    function buildRing() {
+    function buildCompass() {
       for (let d = 0; d < 360; d += 10) {
         const rad = d * Math.PI / 180;
         const tick = document.createElement("div");
-        tick.className = d === 0 ? "tick north" : d % 30 === 0 ? "tick major" : "tick";
+        tick.className = d === 0 ? "tick zero" : d % 30 === 0 ? "tick major" : "tick";
         tick.style.left = `${50 + Math.sin(rad) * 45}%`;
         tick.style.top = `${50 - Math.cos(rad) * 45}%`;
         tick.style.transform = `translate(-50%, -50%) rotate(${d}deg)`;
         ring.appendChild(tick);
+
+        if (d % 30 === 0) {
+          const label = document.createElement("div");
+          label.className = "relLabel";
+          label.textContent = String(d);
+          label.style.left = `${50 + Math.sin(rad) * 36}%`;
+          label.style.top = `${50 - Math.cos(rad) * 36}%`;
+          label.style.transform = "translate(-50%, -50%)";
+          ring.appendChild(label);
+        }
       }
 
-      const labels = [
-        [0, "N", "north"], [90, "E", ""], [180, "S", ""], [270, "W", ""],
-        [30, "30", ""], [60, "60", ""], [120, "120", ""], [150, "150", ""],
-        [210, "210", ""], [240, "240", ""], [300, "300", ""], [330, "330", ""]
-      ];
-
-      for (const [d, text, extra] of labels) {
-        const rad = d * Math.PI / 180;
-        const el = document.createElement("div");
-        el.className = `label ${extra}`;
-        el.textContent = text;
-        el.style.left = `${50 + Math.sin(rad) * 36}%`;
-        el.style.top = `${50 - Math.cos(rad) * 36}%`;
-        el.style.transform = "translate(-50%, -50%)";
-        ring.appendChild(el);
-      }
-    }
-
-    function readHeading(event) {
-      if (typeof event.webkitCompassHeading === "number") return event.webkitCompassHeading;
-      if (typeof event.alpha === "number") return norm(360 - event.alpha);
-      return null;
-    }
-
-    function relativeHeading() {
-      if (state.heading == null) return null;
-      return norm(state.heading - state.zeroHeading - state.bezelOffset);
+      const n = document.createElement("div");
+      n.className = "northLabel";
+      n.textContent = "N";
+      northLayer.appendChild(n);
     }
 
     function updateDisplay() {
       voiceBtn.textContent = `音声: ${state.voice ? "ON" : "OFF"}`;
       localStorage.setItem("voiceOn", state.voice ? "1" : "0");
 
-      ring.style.transform = `rotate(${state.bezelOffset}deg)`;
+      const northRelative = norm(0 - state.zeroHeading);
+      const nr = northRelative * Math.PI / 180;
+      const n = northLayer.querySelector(".northLabel");
+      n.style.left = `${50 + Math.sin(nr) * 41}%`;
+      n.style.top = `${50 - Math.cos(nr) * 41}%`;
+      n.style.transform = "translate(-50%, -50%)";
 
       state.targetVisual = shortestVisual(state.targetVisual, state.target);
-      state.selectVisual = shortestVisual(state.selectVisual, state.selected);
       targetNeedle.style.transform = `rotate(${state.targetVisual}deg)`;
-      selectNeedle.style.transform = `rotate(${state.selectVisual}deg)`;
-
-      selectValue.textContent = `${roundDeg(state.selected)}°`;
       targetValue.textContent = `${roundDeg(state.target)}°`;
-      selectInput.value = roundDeg(state.selected);
+      targetInput.value = roundDeg(state.target);
 
       const rel = relativeHeading();
       if (rel == null) return;
 
-      state.currentVisual = shortestVisual(state.currentVisual, rel);
-      currentNeedle.style.transform = `rotate(${state.currentVisual}deg)`;
-
       const cur = roundDeg(rel);
-      currentValue.textContent = `${cur}°`;
       centerAngle.textContent = `${cur}°`;
+      currentValue.textContent = `${cur}°`;
 
       const diff = signedDiff(state.target, rel);
       const abs = Math.round(Math.abs(diff));
       const threshold = Math.max(1, Number(thresholdInput.value) || 2);
 
       if (abs < threshold) {
-        guideMain.style.color = "var(--green)";
+        guideMain.style.color = "var(--ok)";
         guideMain.textContent = "OK";
         guideSub.textContent = `現在 ${cur}° / 目標 ${roundDeg(state.target)}°`;
         speak("合っています");
@@ -595,7 +553,7 @@
       if (h == null) {
         statusEl.textContent = "方位なし";
         guideMain.textContent = "方位なし";
-        guideSub.textContent = "iPhoneの設定でモーションと方位を許可してください";
+        guideSub.textContent = "iPhoneのモーションと方位を許可してください";
         return;
       }
       state.rawHeading = h;
@@ -610,96 +568,61 @@
     }
 
     async function startSensors() {
+      if (state.sensorStarted) return;
       try {
         if (!window.isSecureContext) {
           statusEl.textContent = "HTTPS必要";
           guideMain.textContent = "HTTPS";
-          guideSub.textContent = "iPhoneではHTTPSページで開いてください";
+          guideSub.textContent = "iPhoneではHTTPSで開いてください";
           return;
         }
         if (typeof DeviceOrientationEvent !== "undefined" &&
             typeof DeviceOrientationEvent.requestPermission === "function") {
           const res = await DeviceOrientationEvent.requestPermission();
           if (res !== "granted") {
-            statusEl.textContent = "許可なし";
-            guideMain.textContent = "許可なし";
-            guideSub.textContent = "モーションと方位の許可が必要です";
+            tapStart.classList.add("show");
+            statusEl.textContent = "許可待ち";
             return;
           }
         }
         window.addEventListener("deviceorientation", onOrientation, true);
         window.addEventListener("deviceorientationabsolute", onOrientation, true);
-        state.started = true;
+        state.sensorStarted = true;
+        tapStart.classList.remove("show");
         statusEl.textContent = "待機中";
-        speak("センサーを開始しました", true);
       } catch (err) {
-        statusEl.textContent = "エラー";
-        guideMain.textContent = "開始失敗";
-        guideSub.textContent = err.message || String(err);
+        tapStart.classList.add("show");
+        statusEl.textContent = "タップ開始";
       }
+    }
+
+    function setTargetFromEvent(event) {
+      state.target = angleFromPoint(event.clientX, event.clientY);
+      localStorage.setItem("targetAngle", String(state.target));
+      stopSpeech();
+      updateDisplay();
     }
 
     compass.addEventListener("pointerdown", (event) => {
       compass.setPointerCapture(event.pointerId);
-      state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (state.pointers.size === 2) {
-        state.gestureStartAngle = twoFingerAngle();
-        state.gestureStartBezel = state.bezelOffset;
-      } else if (state.pointers.size === 1) {
-        state.selected = angleFromPoint(event.clientX, event.clientY);
-        localStorage.setItem("selectedAngle", String(state.selected));
-        updateDisplay();
-      }
+      setTargetFromEvent(event);
     });
 
     compass.addEventListener("pointermove", (event) => {
-      if (!state.pointers.has(event.pointerId)) return;
-      state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (state.pointers.size >= 2) {
-        const delta = twoFingerAngle() - state.gestureStartAngle;
-        state.bezelOffset = norm(state.gestureStartBezel + delta);
-        localStorage.setItem("bezelOffset", String(state.bezelOffset));
-      } else {
-        state.selected = angleFromPoint(event.clientX, event.clientY);
-        localStorage.setItem("selectedAngle", String(state.selected));
-      }
-      updateDisplay();
+      if (event.buttons) setTargetFromEvent(event);
     });
-
-    function endPointer(event) {
-      state.pointers.delete(event.pointerId);
-      if (state.pointers.size === 1) {
-        const only = [...state.pointers.values()][0];
-        state.selected = angleFromPoint(only.x, only.y);
-      }
-      updateDisplay();
-    }
-
-    compass.addEventListener("pointerup", endPointer);
-    compass.addEventListener("pointercancel", endPointer);
-
-    $("startBtn").addEventListener("click", startSensors);
 
     $("zeroBtn").addEventListener("click", () => {
       if (state.heading == null) {
         guideMain.textContent = "方位待ち";
-        guideSub.textContent = "センサー開始後に押してください";
+        guideSub.textContent = "方位が取れてから押してください";
+        startSensors();
         return;
       }
       state.zeroHeading = state.heading;
-      state.bezelOffset = 0;
       localStorage.setItem("zeroHeading", String(state.zeroHeading));
-      localStorage.setItem("bezelOffset", String(state.bezelOffset));
       stopSpeech();
-      speak("今の向きをゼロ度にしました", true);
-      updateDisplay();
-    });
-
-    $("targetBtn").addEventListener("click", () => {
-      state.target = norm(state.selected);
-      localStorage.setItem("targetAngle", String(state.target));
-      stopSpeech();
-      speak(`目標${roundDeg(state.target)}度にセットしました`, true);
+      speak("今の機械方向をゼロ度にしました", true);
       updateDisplay();
     });
 
@@ -715,9 +638,10 @@
       updateDisplay();
     });
 
-    selectInput.addEventListener("change", () => {
-      state.selected = norm(Number(selectInput.value) || 0);
-      localStorage.setItem("selectedAngle", String(state.selected));
+    targetInput.addEventListener("change", () => {
+      state.target = norm(Number(targetInput.value) || 0);
+      localStorage.setItem("targetAngle", String(state.target));
+      stopSpeech();
       updateDisplay();
     });
 
@@ -728,8 +652,12 @@
       updateDisplay();
     });
 
-    buildRing();
+    tapStart.addEventListener("click", startSensors);
+    document.body.addEventListener("click", () => startSensors(), { once: true });
+
+    buildCompass();
     updateDisplay();
+    startSensors();
   </script>
 </body>
 </html>
