@@ -135,7 +135,7 @@
     .tick.zero {
       width: 6px;
       height: 15%;
-      background: var(--yellow);
+      background: var(--red);
     }
 
     .relLabel {
@@ -233,33 +233,6 @@
       line-height: 1.35;
     }
 
-    .panels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .panel {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      min-height: 66px;
-      padding: 9px;
-    }
-
-    .panel .k {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .panel .v {
-      margin-top: 4px;
-      font-size: 28px;
-      line-height: 1;
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-    }
-
     .controls {
       display: grid;
       gap: 8px;
@@ -310,23 +283,8 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .tapStart {
-      display: none;
-      border: 1px solid #7b6321;
-      background: #352b12;
-      color: var(--text);
-      padding: 10px;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: 850;
-    }
-
-    .tapStart.show { display: block; }
-
     @media (max-width: 430px) {
       .row { grid-template-columns: 1fr; }
-      .panels { grid-template-columns: 1fr 1fr; }
-      .panel { min-height: 58px; }
     }
   </style>
 </head>
@@ -336,8 +294,6 @@
       <h1>方向ガイド</h1>
       <div id="status" class="status">起動中</div>
     </div>
-
-    <div id="tapStart" class="tapStart">ここをタップして許可</div>
 
     <section class="guide">
       <div id="guideMain" class="guideMain">---</div>
@@ -359,22 +315,12 @@
       <div class="hint">黄色線をタップ/なぞって目標方向へ合わせます。周りの数字は機械方向を0°にした相対角度です。</div>
     </section>
 
-    <section class="panels">
-      <div class="panel">
-        <div class="k">現在方向</div>
-        <div id="currentValue" class="v">---°</div>
-      </div>
-      <div class="panel">
-        <div class="k">黄色線の目標</div>
-        <div id="targetValue" class="v">300°</div>
-      </div>
-    </section>
-
     <section class="controls">
+      <button id="compassBtn">コンパス</button>
       <button id="zeroBtn" class="primary">今の機械方向を0°にする</button>
       <div class="row">
         <button id="voiceBtn" class="ok">音声: ON</button>
-        <label>読み上げ開始
+        <label>読み上げ開始角度（この誤差以上）
           <input id="thresholdInput" type="number" min="1" max="90" step="1" inputmode="numeric" value="2">
         </label>
       </div>
@@ -390,16 +336,20 @@
     const guideMain = $("guideMain");
     const guideSub = $("guideSub");
     const centerAngle = $("centerAngle");
-    const currentValue = $("currentValue");
-    const targetValue = $("targetValue");
     const thresholdInput = $("thresholdInput");
     const voiceBtn = $("voiceBtn");
-    const tapStart = $("tapStart");
+
+    if (localStorage.getItem("directionGuideVersion") !== "4") {
+      localStorage.setItem("zeroHeading", "0");
+      localStorage.setItem("compassMode", "1");
+      localStorage.setItem("directionGuideVersion", "4");
+    }
 
     const state = {
       heading: null,
       rawHeading: null,
       zeroHeading: Number(localStorage.getItem("zeroHeading")) || 0,
+      compassMode: localStorage.getItem("compassMode") !== "0",
       target: Number(localStorage.getItem("targetAngle")) || 300,
       threshold: Number(localStorage.getItem("voiceThreshold")) || 2,
       voice: localStorage.getItem("voiceOn") !== "0",
@@ -478,7 +428,8 @@
         if (d % 30 === 0) {
           const label = document.createElement("div");
           label.className = "relLabel";
-          label.textContent = String(d);
+          label.textContent = d === 0 ? "N" : String(d);
+          if (d === 0) label.style.color = "var(--red)";
           label.style.left = `${50 + Math.sin(rad) * 36}%`;
           label.style.top = `${50 - Math.cos(rad) * 36}%`;
           label.style.transform = "translate(-50%, -50%)";
@@ -491,8 +442,8 @@
     function updateDisplay() {
       voiceBtn.textContent = `音声: ${state.voice ? "ON" : "OFF"}`;
       localStorage.setItem("voiceOn", state.voice ? "1" : "0");
-
-      targetValue.textContent = `${roundDeg(state.target)}°`;
+      const zeroLabel = ring.querySelector(".relLabel");
+      if (zeroLabel) zeroLabel.textContent = state.compassMode ? "N" : "0";
 
       const rel = relativeHeading();
       if (rel == null) {
@@ -507,7 +458,6 @@
 
       const cur = roundDeg(rel);
       centerAngle.textContent = `${cur}°`;
-      currentValue.textContent = `${cur}°`;
 
       const diff = signedDiff(state.target, rel);
       const abs = Math.round(Math.abs(diff));
@@ -557,20 +507,14 @@
         if (typeof DeviceOrientationEvent !== "undefined" &&
             typeof DeviceOrientationEvent.requestPermission === "function") {
           const res = await DeviceOrientationEvent.requestPermission();
-          if (res !== "granted") {
-            tapStart.classList.add("show");
-            statusEl.textContent = "許可待ち";
-            return;
-          }
+          if (res !== "granted") return;
         }
         window.addEventListener("deviceorientation", onOrientation, true);
         window.addEventListener("deviceorientationabsolute", onOrientation, true);
         state.sensorStarted = true;
-        tapStart.classList.remove("show");
         statusEl.textContent = "待機中";
       } catch (err) {
-        tapStart.classList.add("show");
-        statusEl.textContent = "タップ開始";
+        statusEl.textContent = "許可待ち";
       }
     }
 
@@ -591,6 +535,15 @@
       if (event.buttons) setTargetFromEvent(event);
     });
 
+    $("compassBtn").addEventListener("click", () => {
+      state.zeroHeading = 0;
+      state.compassMode = true;
+      localStorage.setItem("zeroHeading", "0");
+      localStorage.setItem("compassMode", "1");
+      stopSpeech();
+      updateDisplay();
+    });
+
     $("zeroBtn").addEventListener("click", () => {
       if (state.heading == null) {
         guideMain.textContent = "方位待ち";
@@ -599,7 +552,9 @@
         return;
       }
       state.zeroHeading = state.heading;
+      state.compassMode = false;
       localStorage.setItem("zeroHeading", String(state.zeroHeading));
+      localStorage.setItem("compassMode", "0");
       stopSpeech();
       speak("今の機械方向をゼロ度にしました", true);
       updateDisplay();
@@ -617,9 +572,6 @@
       stopSpeech();
       updateDisplay();
     });
-
-    tapStart.addEventListener("click", startSensors);
-    document.body.addEventListener("click", () => startSensors(), { once: true });
 
     buildCompass();
     updateDisplay();
