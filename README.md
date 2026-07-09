@@ -2,15 +2,22 @@
 
 iPhone Safariで使う方向案内の試作アプリです。
 
-## GitHub Pagesで使う手順
+## 使い方
 
-1. GitHubで新しいリポジトリを作る
-2. このフォルダの `index.html` と `README.md` をアップロードする
-3. リポジトリの Settings > Pages を開く
-4. Source を `Deploy from a branch`、Branch を `main`、Folder を `/root` にする
-5. 表示された `https://...github.io/.../` のURLをiPhone Safariで開く
+1. iPhone SafariでHTTPSの公開URLを開く
+2. `センサー開始` を押す
+3. 機械の方向に向けて、必要なら二本指で目盛りを回して0度を合わせる
+4. 一本指で青い仮目標を合わせる
+5. `目標をセット` を押す
+6. 歩きながら中央の `右 2°` / `左 5°` を見る
+
+## 表示
+
+- 赤い `N`: 北
+- 緑の針: 現在方向
+- 青い針: 仮目標
+- 黄色の針: セット済み目標
 
 ## 注意
 
 iPhone Safariの方位センサーは、基本的にHTTPSページでないと動きません。
-`http://192.168...` で開いた場合、画面表示はできますが方位が取れないことがあります。
