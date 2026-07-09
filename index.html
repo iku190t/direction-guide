@@ -453,14 +453,14 @@
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "square";
-      osc.frequency.value = 2600;
+      osc.frequency.value = 1900;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.028);
+      gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.045);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.032);
+      osc.stop(ctx.currentTime + 0.052);
     }
 
     function stopSpeech() {
@@ -587,7 +587,7 @@
       unlockAudio();
       const rel = relativeHeading() || 0;
       state.target = norm(angleFromPoint(event.clientX, event.clientY) + rel);
-      const tick = Math.floor(roundDeg(state.target) / 2);
+      const tick = roundDeg(state.target);
       if (state.lastTargetTick !== tick) {
         state.lastTargetTick = tick;
         tickSound();
