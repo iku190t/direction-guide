@@ -138,7 +138,7 @@
       background: var(--yellow);
     }
 
-    .relLabel, .northLabel {
+    .relLabel {
       position: absolute;
       left: 50%;
       top: 50%;
@@ -155,12 +155,6 @@
     .relLabel {
       color: #e9eef4;
       font-size: 14px;
-    }
-
-    .northLabel {
-      color: var(--red);
-      font-size: 24px;
-      z-index: 3;
     }
 
     .topMark {
@@ -330,7 +324,8 @@
     .tapStart.show { display: block; }
 
     @media (max-width: 430px) {
-      .row, .panels { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+      .panels { grid-template-columns: 1fr 1fr; }
       .panel { min-height: 58px; }
     }
   </style>
@@ -342,7 +337,7 @@
       <div id="status" class="status">起動中</div>
     </div>
 
-    <div id="tapStart" class="tapStart">ここをタップしてセンサー開始</div>
+    <div id="tapStart" class="tapStart">ここをタップして許可</div>
 
     <section class="guide">
       <div id="guideMain" class="guideMain">---</div>
@@ -352,7 +347,6 @@
     <section class="compassBox">
       <div id="compass" class="compass">
         <div id="ring" class="ring"></div>
-        <div id="northLayer"></div>
         <div class="topMark"></div>
         <div id="targetNeedle" class="targetNeedle"></div>
         <div class="center">
@@ -380,12 +374,6 @@
       <button id="zeroBtn" class="primary">今の機械方向を0°にする</button>
       <div class="row">
         <button id="voiceBtn" class="ok">音声: ON</button>
-        <button id="stopVoiceBtn">音声を止める</button>
-      </div>
-      <div class="row">
-        <label>黄色線の角度
-          <input id="targetInput" type="number" min="0" max="359" step="1" inputmode="numeric" value="300">
-        </label>
         <label>読み上げ開始
           <input id="thresholdInput" type="number" min="1" max="90" step="1" inputmode="numeric" value="2">
         </label>
@@ -397,7 +385,6 @@
     const $ = (id) => document.getElementById(id);
     const compass = $("compass");
     const ring = $("ring");
-    const northLayer = $("northLayer");
     const targetNeedle = $("targetNeedle");
     const statusEl = $("status");
     const guideMain = $("guideMain");
@@ -405,7 +392,6 @@
     const centerAngle = $("centerAngle");
     const currentValue = $("currentValue");
     const targetValue = $("targetValue");
-    const targetInput = $("targetInput");
     const thresholdInput = $("thresholdInput");
     const voiceBtn = $("voiceBtn");
     const tapStart = $("tapStart");
@@ -423,7 +409,6 @@
       sensorStarted: false
     };
 
-    targetInput.value = Math.round(state.target);
     thresholdInput.value = state.threshold;
 
     function norm(deg) {
@@ -501,30 +486,24 @@
         }
       }
 
-      const n = document.createElement("div");
-      n.className = "northLabel";
-      n.textContent = "N";
-      northLayer.appendChild(n);
     }
 
     function updateDisplay() {
       voiceBtn.textContent = `音声: ${state.voice ? "ON" : "OFF"}`;
       localStorage.setItem("voiceOn", state.voice ? "1" : "0");
 
-      const northRelative = norm(0 - state.zeroHeading);
-      const nr = northRelative * Math.PI / 180;
-      const n = northLayer.querySelector(".northLabel");
-      n.style.left = `${50 + Math.sin(nr) * 41}%`;
-      n.style.top = `${50 - Math.cos(nr) * 41}%`;
-      n.style.transform = "translate(-50%, -50%)";
-
-      state.targetVisual = shortestVisual(state.targetVisual, state.target);
-      targetNeedle.style.transform = `rotate(${state.targetVisual}deg)`;
       targetValue.textContent = `${roundDeg(state.target)}°`;
-      targetInput.value = roundDeg(state.target);
 
       const rel = relativeHeading();
-      if (rel == null) return;
+      if (rel == null) {
+        state.targetVisual = shortestVisual(state.targetVisual, state.target);
+        targetNeedle.style.transform = `rotate(${state.targetVisual}deg)`;
+        return;
+      }
+
+      ring.style.transform = `rotate(${-rel}deg)`;
+      state.targetVisual = shortestVisual(state.targetVisual, state.target - rel);
+      targetNeedle.style.transform = `rotate(${state.targetVisual}deg)`;
 
       const cur = roundDeg(rel);
       centerAngle.textContent = `${cur}°`;
@@ -538,7 +517,6 @@
         guideMain.style.color = "var(--ok)";
         guideMain.textContent = "OK";
         guideSub.textContent = `現在 ${cur}° / 目標 ${roundDeg(state.target)}°`;
-        speak("合っています");
       } else {
         const side = diff > 0 ? "右" : "左";
         guideMain.style.color = "var(--yellow)";
@@ -597,7 +575,8 @@
     }
 
     function setTargetFromEvent(event) {
-      state.target = angleFromPoint(event.clientX, event.clientY);
+      const rel = relativeHeading() || 0;
+      state.target = norm(angleFromPoint(event.clientX, event.clientY) + rel);
       localStorage.setItem("targetAngle", String(state.target));
       stopSpeech();
       updateDisplay();
@@ -629,19 +608,6 @@
     voiceBtn.addEventListener("click", () => {
       state.voice = !state.voice;
       if (!state.voice) stopSpeech();
-      updateDisplay();
-    });
-
-    $("stopVoiceBtn").addEventListener("click", () => {
-      state.voice = false;
-      stopSpeech();
-      updateDisplay();
-    });
-
-    targetInput.addEventListener("change", () => {
-      state.target = norm(Number(targetInput.value) || 0);
-      localStorage.setItem("targetAngle", String(state.target));
-      stopSpeech();
       updateDisplay();
     });
 
