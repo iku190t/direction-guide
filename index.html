@@ -346,38 +346,28 @@
       text-shadow: 0 1px 3px #000;
     }
 
-    .cameraAngle {
+    .cameraReadouts {
       position: absolute;
-      left: 50%;
+      right: 10px;
       top: calc(max(58px, env(safe-area-inset-top) + 46px));
-      transform: translateX(-50%);
+      display: grid;
+      justify-items: end;
+      gap: 6px;
+      text-align: right;
+      z-index: 3;
+    }
+
+    .cameraAngle,
+    .cameraVertical {
       padding: 8px 12px;
       border-radius: 8px;
       background: rgba(0, 0, 0, .62);
       border: 1px solid rgba(255,255,255,.25);
-      font-size: clamp(24px, 8vw, 42px);
+      font-size: 23px;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       text-shadow: 0 1px 3px #000;
-      z-index: 3;
-    }
-
-    .cameraVertical {
-      position: absolute;
-      left: 50%;
-      bottom: 14px;
-      transform: translateX(-50%);
-      padding: 7px 12px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, .68);
-      border: 1px solid rgba(255,255,255,.25);
-      font-size: 16px;
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-shadow: 0 1px 3px #000;
-      z-index: 3;
     }
 
     .cameraControls {
@@ -454,9 +444,11 @@
     <div id="cameraView" class="cameraView">
       <video id="cameraVideo" playsinline muted></video>
       <div class="cameraTop">中央線を目標物に合わせてください</div>
-      <div id="cameraAngle" class="cameraAngle">0°基準から ---°</div>
+      <div class="cameraReadouts">
+        <div id="cameraAngle" class="cameraAngle">0°基準から ---°</div>
+        <div id="cameraVertical" class="cameraVertical">鉛直角 ---°</div>
+      </div>
       <div class="sightLine"></div>
-      <div id="cameraVertical" class="cameraVertical">鉛直角 ---°</div>
     </div>
     <div class="cameraControls">
       <button id="cameraZeroBtn" class="primary">この方向を0°</button>
@@ -546,7 +538,7 @@
       cameraAngle.textContent = rel == null ? "0°基準から ---°" : `0°基準から ${roundDeg(rel)}°`;
       cameraVertical.textContent = state.verticalAngle == null
         ? "鉛直角 ---°"
-        : `鉛直角 ${Math.round(state.verticalAngle)}°`;
+        : `鉛直角 ${Math.round(180 - state.verticalAngle)}°`;
     }
 
     function angleFromPoint(clientX, clientY) {
