@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="方向ガイド">
   <meta name="theme-color" content="#10151b">
@@ -274,6 +274,12 @@
       border-color: #b33a3a;
     }
 
+    button.confirmed {
+      background: #175d3c;
+      border-color: #55d99a;
+      transform: scale(.97);
+    }
+
     .cameraOverlay {
       position: fixed;
       inset: 0;
@@ -292,6 +298,7 @@
       position: relative;
       overflow: hidden;
       background: #000;
+      touch-action: none;
     }
 
     .cameraView video {
@@ -299,6 +306,8 @@
       height: 100%;
       object-fit: cover;
       display: block;
+      transform-origin: center;
+      will-change: transform;
     }
 
     .sightLine {
@@ -418,7 +427,7 @@
       <button id="cameraBtn">カメラで合わせる</button>
       <button id="zeroBtn" class="primary">今の方向を0°にする</button>
       <div class="row">
-        <button id="voiceBtn" class="ok">音声: ON</button>
+        <button id="voiceBtn">音声: OFF</button>
         <label>読み上げ開始角度（この誤差以上）
           <input id="thresholdInput" type="number" min="1" max="90" step="1" inputmode="numeric" value="2">
         </label>
@@ -427,7 +436,7 @@
   </main>
 
   <div id="cameraOverlay" class="cameraOverlay">
-    <div class="cameraView">
+    <div id="cameraView" class="cameraView">
       <video id="cameraVideo" playsinline muted></video>
       <div class="cameraTop">中央線を目標物に合わせてください</div>
       <div id="cameraAngle" class="cameraAngle">0°基準から ---°</div>
@@ -454,13 +463,15 @@
     const thresholdInput = $("thresholdInput");
     const voiceBtn = $("voiceBtn");
     const cameraOverlay = $("cameraOverlay");
+    const cameraView = $("cameraView");
     const cameraVideo = $("cameraVideo");
     const cameraAngle = $("cameraAngle");
 
-    if (localStorage.getItem("directionGuideVersion") !== "5") {
+    if (localStorage.getItem("directionGuideVersion") !== "6") {
       localStorage.setItem("zeroHeading", "0");
       localStorage.setItem("compassMode", "1");
-      localStorage.setItem("directionGuideVersion", "5");
+      localStorage.setItem("voiceOn", "0");
+      localStorage.setItem("directionGuideVersion", "6");
     }
 
     const state = {
@@ -470,7 +481,7 @@
       compassMode: localStorage.getItem("compassMode") !== "0",
       target: Number(localStorage.getItem("targetAngle")) || 300,
       threshold: Number(localStorage.getItem("voiceThreshold")) || 2,
-      voice: localStorage.getItem("voiceOn") !== "0",
+      voice: localStorage.getItem("voiceOn") === "1",
       targetVisual: 300,
       lastTargetTick: null,
       lastSpeechAt: 0,
@@ -478,6 +489,7 @@
       lastBeepAt: 0,
       audioContext: null,
       cameraStream: null,
+      cameraZoom: 1,
       sensorStarted: false,
       sensorRequesting: false
     };
@@ -614,6 +626,7 @@
 
     function updateDisplay() {
       voiceBtn.textContent = `音声: ${state.voice ? "ON" : "OFF"}`;
+      voiceBtn.classList.toggle("ok", state.voice);
       localStorage.setItem("voiceOn", state.voice ? "1" : "0");
       $("compassBtn").textContent = "コンパス";
       $("compassBtn").classList.toggle("active", state.compassMode);
@@ -738,6 +751,8 @@
         });
         state.cameraStream = stream;
         cameraVideo.srcObject = stream;
+        state.cameraZoom = 1;
+        cameraVideo.style.transform = "scale(1)";
         await cameraVideo.play();
         updateCameraAngle();
         cameraOverlay.classList.add("show");
@@ -753,7 +768,22 @@
       }
       state.cameraStream = null;
       cameraVideo.srcObject = null;
+      state.cameraZoom = 1;
+      cameraVideo.style.transform = "scale(1)";
       cameraOverlay.classList.remove("show");
+    }
+
+    function confirmCameraAction(button, message) {
+      const original = button.dataset.originalText || button.textContent;
+      button.dataset.originalText = original;
+      clearTimeout(button.confirmTimer);
+      button.textContent = message;
+      button.classList.add("confirmed");
+      if (navigator.vibrate) navigator.vibrate(45);
+      button.confirmTimer = setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove("confirmed");
+      }, 750);
     }
 
     function setZeroFromCamera() {
@@ -771,6 +801,7 @@
       stopSpeech();
       speak("この方向をゼロ度にしました", true);
       updateDisplay();
+      confirmCameraAction($("cameraZeroBtn"), "0°に設定しました");
     }
 
     function setTargetFromCamera() {
@@ -786,7 +817,42 @@
       localStorage.setItem("targetAngle", String(state.target));
       stopSpeech();
       updateDisplay();
+      confirmCameraAction($("cameraTargetBtn"), "セットしました");
     }
+
+    const cameraPointers = new Map();
+    let pinchStartDistance = 0;
+    let pinchStartZoom = 1;
+
+    function pointerDistance() {
+      const points = [...cameraPointers.values()];
+      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    }
+
+    cameraView.addEventListener("pointerdown", (event) => {
+      cameraView.setPointerCapture(event.pointerId);
+      cameraPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (cameraPointers.size === 2) {
+        pinchStartDistance = pointerDistance();
+        pinchStartZoom = state.cameraZoom;
+      }
+    });
+
+    cameraView.addEventListener("pointermove", (event) => {
+      if (!cameraPointers.has(event.pointerId)) return;
+      cameraPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (cameraPointers.size !== 2 || !pinchStartDistance) return;
+      state.cameraZoom = Math.min(5, Math.max(1, pinchStartZoom * pointerDistance() / pinchStartDistance));
+      cameraVideo.style.transform = `scale(${state.cameraZoom})`;
+    });
+
+    function releaseCameraPointer(event) {
+      cameraPointers.delete(event.pointerId);
+      if (cameraPointers.size < 2) pinchStartDistance = 0;
+    }
+
+    cameraView.addEventListener("pointerup", releaseCameraPointer);
+    cameraView.addEventListener("pointercancel", releaseCameraPointer);
 
     compass.addEventListener("pointerdown", (event) => {
       compass.setPointerCapture(event.pointerId);
