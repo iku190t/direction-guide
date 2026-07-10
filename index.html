@@ -365,6 +365,23 @@
       z-index: 3;
     }
 
+    .cameraVertical {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, .68);
+      border: 1px solid rgba(255,255,255,.25);
+      font-size: 22px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000;
+      z-index: 3;
+    }
+
     .cameraControls {
       padding: 10px 10px max(12px, env(safe-area-inset-bottom));
       display: grid;
@@ -441,6 +458,7 @@
       <div class="cameraTop">中央線を目標物に合わせてください</div>
       <div id="cameraAngle" class="cameraAngle">0°基準から ---°</div>
       <div class="sightLine"></div>
+      <div id="cameraVertical" class="cameraVertical">鉛直角 ---°</div>
     </div>
     <div class="cameraControls">
       <button id="cameraZeroBtn" class="primary">この方向を0°</button>
@@ -466,6 +484,7 @@
     const cameraView = $("cameraView");
     const cameraVideo = $("cameraVideo");
     const cameraAngle = $("cameraAngle");
+    const cameraVertical = $("cameraVertical");
 
     if (localStorage.getItem("directionGuideVersion") !== "6") {
       localStorage.setItem("zeroHeading", "0");
@@ -490,6 +509,7 @@
       audioContext: null,
       cameraStream: null,
       cameraZoom: 1,
+      verticalAngle: null,
       sensorStarted: false,
       sensorRequesting: false
     };
@@ -526,6 +546,9 @@
     function updateCameraAngle() {
       const rel = relativeHeading();
       cameraAngle.textContent = rel == null ? "0°基準から ---°" : `0°基準から ${roundDeg(rel)}°`;
+      cameraVertical.textContent = state.verticalAngle == null
+        ? "鉛直角 ---°"
+        : `鉛直角 ${Math.round(state.verticalAngle)}°`;
     }
 
     function angleFromPoint(clientX, clientY) {
@@ -668,6 +691,13 @@
     }
 
     function onOrientation(event) {
+      if (typeof event.beta === "number") {
+        const vertical = Math.max(0, Math.min(180, event.beta));
+        state.verticalAngle = state.verticalAngle == null
+          ? vertical
+          : state.verticalAngle * 0.72 + vertical * 0.28;
+        updateCameraAngle();
+      }
       const h = readHeading(event);
       if (h == null) {
         statusEl.textContent = "方位なし";
