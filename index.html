@@ -339,6 +339,23 @@
       text-shadow: 0 1px 3px #000;
     }
 
+    .cameraAngle {
+      position: absolute;
+      left: 50%;
+      top: calc(max(58px, env(safe-area-inset-top) + 46px));
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, .62);
+      border: 1px solid rgba(255,255,255,.25);
+      font-size: clamp(24px, 8vw, 42px);
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000;
+      z-index: 3;
+    }
+
     .cameraControls {
       padding: 10px 10px max(12px, env(safe-area-inset-bottom));
       display: grid;
@@ -413,6 +430,7 @@
     <div class="cameraView">
       <video id="cameraVideo" playsinline muted></video>
       <div class="cameraTop">中央線を目標物に合わせてください</div>
+      <div id="cameraAngle" class="cameraAngle">0°基準から ---°</div>
       <div class="sightLine"></div>
     </div>
     <div class="cameraControls">
@@ -437,6 +455,7 @@
     const voiceBtn = $("voiceBtn");
     const cameraOverlay = $("cameraOverlay");
     const cameraVideo = $("cameraVideo");
+    const cameraAngle = $("cameraAngle");
 
     if (localStorage.getItem("directionGuideVersion") !== "5") {
       localStorage.setItem("zeroHeading", "0");
@@ -490,6 +509,11 @@
     function relativeHeading() {
       if (state.heading == null) return null;
       return norm(state.heading - state.zeroHeading);
+    }
+
+    function updateCameraAngle() {
+      const rel = relativeHeading();
+      cameraAngle.textContent = rel == null ? "0°基準から ---°" : `0°基準から ${roundDeg(rel)}°`;
     }
 
     function angleFromPoint(clientX, clientY) {
@@ -600,6 +624,7 @@
       if (rel == null) {
         state.targetVisual = shortestVisual(state.targetVisual, state.target);
         targetNeedle.style.transform = `rotate(${state.targetVisual}deg)`;
+        updateCameraAngle();
         return;
       }
 
@@ -609,6 +634,7 @@
 
       const cur = roundDeg(rel);
       centerAngle.textContent = `${cur}°`;
+      updateCameraAngle();
 
       const diff = signedDiff(state.target, rel);
       const abs = Math.round(Math.abs(diff));
@@ -713,6 +739,7 @@
         state.cameraStream = stream;
         cameraVideo.srcObject = stream;
         await cameraVideo.play();
+        updateCameraAngle();
         cameraOverlay.classList.add("show");
       } catch (err) {
         guideMain.textContent = "カメラ不可";
@@ -744,7 +771,6 @@
       stopSpeech();
       speak("この方向をゼロ度にしました", true);
       updateDisplay();
-      stopCamera();
     }
 
     function setTargetFromCamera() {
@@ -760,7 +786,6 @@
       localStorage.setItem("targetAngle", String(state.target));
       stopSpeech();
       updateDisplay();
-      stopCamera();
     }
 
     compass.addEventListener("pointerdown", (event) => {
