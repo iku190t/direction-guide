@@ -274,6 +274,82 @@
       border-color: #b33a3a;
     }
 
+    .cameraOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      background: #000;
+      color: var(--text);
+    }
+
+    .cameraOverlay.show {
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .cameraView {
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .cameraView video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .sightLine {
+      position: absolute;
+      left: 50%;
+      top: 5%;
+      bottom: 5%;
+      width: 3px;
+      transform: translateX(-50%);
+      background: var(--yellow);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.65), 0 0 18px rgba(255,212,77,.7);
+    }
+
+    .sightLine::before,
+    .sightLine::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      width: 54px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: var(--yellow);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.65);
+    }
+
+    .sightLine::before { top: 50%; }
+    .sightLine::after { bottom: 50%; }
+
+    .cameraTop {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      padding: max(12px, env(safe-area-inset-top)) 12px 8px;
+      background: linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,0));
+      font-weight: 850;
+      text-align: center;
+      text-shadow: 0 1px 3px #000;
+    }
+
+    .cameraControls {
+      padding: 10px 10px max(12px, env(safe-area-inset-bottom));
+      display: grid;
+      gap: 8px;
+      background: #0e1115;
+    }
+
+    .cameraControls .row {
+      grid-template-columns: 1fr 1fr;
+    }
+
     label {
       display: grid;
       gap: 4px;
@@ -322,6 +398,7 @@
 
     <section class="controls">
       <button id="compassBtn">コンパス</button>
+      <button id="cameraBtn">カメラで合わせる</button>
       <button id="zeroBtn" class="primary">今の方向を0°にする</button>
       <div class="row">
         <button id="voiceBtn" class="ok">音声: ON</button>
@@ -331,6 +408,21 @@
       </div>
     </section>
   </main>
+
+  <div id="cameraOverlay" class="cameraOverlay">
+    <div class="cameraView">
+      <video id="cameraVideo" playsinline muted></video>
+      <div class="cameraTop">中央線を目標物に合わせてください</div>
+      <div class="sightLine"></div>
+    </div>
+    <div class="cameraControls">
+      <button id="cameraZeroBtn" class="primary">この方向を0°</button>
+      <div class="row">
+        <button id="cameraTargetBtn">黄色線にセット</button>
+        <button id="cameraCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -343,6 +435,8 @@
     const centerAngle = $("centerAngle");
     const thresholdInput = $("thresholdInput");
     const voiceBtn = $("voiceBtn");
+    const cameraOverlay = $("cameraOverlay");
+    const cameraVideo = $("cameraVideo");
 
     if (localStorage.getItem("directionGuideVersion") !== "5") {
       localStorage.setItem("zeroHeading", "0");
@@ -364,6 +458,7 @@
       lastSpeechKey: "",
       lastBeepAt: 0,
       audioContext: null,
+      cameraStream: null,
       sensorStarted: false,
       sensorRequesting: false
     };
@@ -597,6 +692,77 @@
       updateDisplay();
     }
 
+    async function openCamera() {
+      unlockAudio();
+      await startSensors();
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          guideMain.textContent = "カメラ不可";
+          guideSub.textContent = "このブラウザーではカメラが使えません";
+          return;
+        }
+        if (state.cameraStream) stopCamera();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        state.cameraStream = stream;
+        cameraVideo.srcObject = stream;
+        await cameraVideo.play();
+        cameraOverlay.classList.add("show");
+      } catch (err) {
+        guideMain.textContent = "カメラ不可";
+        guideSub.textContent = "カメラの許可が必要です";
+      }
+    }
+
+    function stopCamera() {
+      if (state.cameraStream) {
+        for (const track of state.cameraStream.getTracks()) track.stop();
+      }
+      state.cameraStream = null;
+      cameraVideo.srcObject = null;
+      cameraOverlay.classList.remove("show");
+    }
+
+    function setZeroFromCamera() {
+      unlockAudio();
+      if (state.heading == null) {
+        guideMain.textContent = "方位待ち";
+        guideSub.textContent = "方位が取れてから押してください";
+        startSensors();
+        return;
+      }
+      state.zeroHeading = state.heading;
+      state.compassMode = false;
+      localStorage.setItem("zeroHeading", String(state.zeroHeading));
+      localStorage.setItem("compassMode", "0");
+      stopSpeech();
+      speak("この方向をゼロ度にしました", true);
+      updateDisplay();
+      stopCamera();
+    }
+
+    function setTargetFromCamera() {
+      unlockAudio();
+      const rel = relativeHeading();
+      if (rel == null) {
+        guideMain.textContent = "方位待ち";
+        guideSub.textContent = "方位が取れてから押してください";
+        startSensors();
+        return;
+      }
+      state.target = rel;
+      localStorage.setItem("targetAngle", String(state.target));
+      stopSpeech();
+      updateDisplay();
+      stopCamera();
+    }
+
     compass.addEventListener("pointerdown", (event) => {
       compass.setPointerCapture(event.pointerId);
       setTargetFromEvent(event);
@@ -628,6 +794,12 @@
       }
       updateDisplay();
     });
+
+    $("cameraBtn").addEventListener("click", openCamera);
+    $("cameraCloseBtn").addEventListener("click", stopCamera);
+    $("cameraZeroBtn").addEventListener("click", setZeroFromCamera);
+    $("cameraTargetBtn").addEventListener("click", setTargetFromCamera);
+    window.addEventListener("pagehide", stopCamera);
 
     $("zeroBtn").addEventListener("click", () => {
       unlockAudio();
