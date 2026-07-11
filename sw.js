@@ -1,4 +1,4 @@
-const CACHE_NAME = "direction-guide-v3";
+const CACHE_NAME = "direction-guide-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
