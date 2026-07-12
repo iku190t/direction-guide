@@ -390,6 +390,63 @@
       grid-template-columns: 1fr 1fr;
     }
 
+    .heightPanel {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 5;
+      display: none;
+      gap: 9px;
+      padding: 12px;
+      border: 1px solid #596673;
+      border-radius: 8px;
+      background: rgba(14, 17, 21, .94);
+      box-shadow: 0 4px 18px rgba(0,0,0,.45);
+    }
+
+    .heightPanel.show { display: grid; }
+
+    .heightPrompt {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.4;
+    }
+
+    .heightDistanceRow {
+      position: relative;
+    }
+
+    .heightDistanceRow input {
+      padding-right: 36px;
+      text-align: right;
+    }
+
+    .heightDistanceRow::after {
+      content: "m";
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 17px;
+      font-weight: 850;
+      pointer-events: none;
+    }
+
+    .heightValue {
+      color: var(--yellow);
+      font-size: 34px;
+      font-weight: 950;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .heightActions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
     label {
       display: grid;
       gap: 4px;
@@ -482,8 +539,21 @@
         <div id="cameraVertical" class="cameraVertical">鉛直角 ---°</div>
       </div>
       <div class="sightLine"></div>
+      <div id="heightPanel" class="heightPanel">
+        <div id="heightPrompt" class="heightPrompt">目標物までの水平距離を入力してください</div>
+        <div id="heightDistanceRow" class="heightDistanceRow">
+          <input id="heightDistance" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="例 25.5">
+        </div>
+        <div id="heightValue" class="heightValue" hidden></div>
+        <div class="heightActions">
+          <button id="heightActionBtn" class="primary">距離を決定</button>
+          <button id="heightResetBtn">やり直し</button>
+        </div>
+        <button id="heightCancelBtn">中止</button>
+      </div>
     </div>
     <div class="cameraControls">
+      <button id="heightBtn">高さを測る</button>
       <button id="cameraZeroBtn" class="primary">この方向を0°</button>
       <div class="row">
         <button id="cameraTargetBtn">黄色線にセット</button>
@@ -508,6 +578,12 @@
     const cameraVideo = $("cameraVideo");
     const cameraAngle = $("cameraAngle");
     const cameraVertical = $("cameraVertical");
+    const heightPanel = $("heightPanel");
+    const heightPrompt = $("heightPrompt");
+    const heightDistanceRow = $("heightDistanceRow");
+    const heightDistance = $("heightDistance");
+    const heightValue = $("heightValue");
+    const heightActionBtn = $("heightActionBtn");
 
     if (localStorage.getItem("directionGuideVersion") !== "6") {
       localStorage.setItem("zeroHeading", "0");
@@ -533,6 +609,9 @@
       cameraStream: null,
       cameraZoom: 1,
       verticalAngle: null,
+      heightStage: "distance",
+      heightDistance: 0,
+      heightBottomAngle: null,
       sensorStarted: false,
       sensorRequesting: false
     };
@@ -834,7 +913,88 @@
       cameraVideo.srcObject = null;
       state.cameraZoom = 1;
       cameraVideo.style.transform = "scale(1)";
+      closeHeightMeasurement();
       cameraOverlay.classList.remove("show");
+    }
+
+    function currentVerticalReading() {
+      return state.verticalAngle == null ? null : 180 - state.verticalAngle;
+    }
+
+    function resetHeightMeasurement() {
+      state.heightStage = "distance";
+      state.heightDistance = 0;
+      state.heightBottomAngle = null;
+      heightPrompt.textContent = "目標物までの水平距離を入力してください";
+      heightDistance.value = "";
+      heightDistanceRow.hidden = false;
+      heightValue.hidden = true;
+      heightValue.textContent = "";
+      heightActionBtn.textContent = "距離を決定";
+    }
+
+    function openHeightMeasurement() {
+      pressFeedback($("heightBtn"));
+      resetHeightMeasurement();
+      heightPanel.classList.add("show");
+      setTimeout(() => heightDistance.focus(), 50);
+    }
+
+    function closeHeightMeasurement() {
+      heightPanel.classList.remove("show");
+      if (document.activeElement === heightDistance) heightDistance.blur();
+    }
+
+    function advanceHeightMeasurement() {
+      pressFeedback(heightActionBtn);
+      if (state.heightStage === "distance") {
+        const distance = Number(heightDistance.value);
+        if (!Number.isFinite(distance) || distance <= 0) {
+          heightPrompt.textContent = "0より大きい水平距離を入力してください";
+          heightDistance.focus();
+          return;
+        }
+        state.heightDistance = distance;
+        state.heightStage = "bottom";
+        heightDistance.blur();
+        heightDistanceRow.hidden = true;
+        heightPrompt.textContent = "中央線を目標物の一番下に合わせてください";
+        heightActionBtn.textContent = "下点を測定";
+        return;
+      }
+
+      const vertical = currentVerticalReading();
+      if (vertical == null) {
+        heightPrompt.textContent = "鉛直角を取得できません。端末の方向アクセスを許可してください";
+        startSensors();
+        return;
+      }
+
+      if (state.heightStage === "bottom") {
+        state.heightBottomAngle = vertical;
+        state.heightStage = "top";
+        heightPrompt.textContent = `下点 ${Math.round(vertical)}°を記録。中央線を一番上に合わせてください`;
+        heightActionBtn.textContent = "上点を測定";
+        return;
+      }
+
+      if (state.heightStage === "top") {
+        const toRadians = Math.PI / 180;
+        const bottomElevation = (90 - state.heightBottomAngle) * toRadians;
+        const topElevation = (90 - vertical) * toRadians;
+        const height = Math.abs(
+          state.heightDistance * (Math.tan(topElevation) - Math.tan(bottomElevation))
+        );
+        state.heightStage = "result";
+        heightPrompt.textContent = `水平距離 ${state.heightDistance}m / 下点 ${Math.round(state.heightBottomAngle)}° / 上点 ${Math.round(vertical)}°`;
+        heightValue.textContent = Number.isFinite(height) ? `高さ ${height.toFixed(2)}m` : "測定できません";
+        heightValue.hidden = false;
+        heightActionBtn.textContent = "もう一度";
+        return;
+      }
+
+      resetHeightMeasurement();
+      heightDistance.focus();
     }
 
     function confirmCameraAction(button, message) {
@@ -967,6 +1127,10 @@
     $("cameraCloseBtn").addEventListener("click", stopCamera);
     $("cameraZeroBtn").addEventListener("click", setZeroFromCamera);
     $("cameraTargetBtn").addEventListener("click", setTargetFromCamera);
+    $("heightBtn").addEventListener("click", openHeightMeasurement);
+    heightActionBtn.addEventListener("click", advanceHeightMeasurement);
+    $("heightResetBtn").addEventListener("click", resetHeightMeasurement);
+    $("heightCancelBtn").addEventListener("click", closeHeightMeasurement);
     window.addEventListener("pagehide", stopCamera);
 
     $("zeroBtn").addEventListener("click", () => {
