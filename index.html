@@ -413,6 +413,16 @@
       line-height: 1.4;
     }
 
+    .heightPrompt.realtimeHeight {
+      color: var(--yellow);
+      font-size: 34px;
+      font-weight: 950;
+      line-height: 1.15;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px #000;
+    }
+
     .heightDistanceRow {
       position: relative;
     }
@@ -651,6 +661,7 @@
       cameraVertical.textContent = state.verticalAngle == null
         ? "鉛直角 ---°"
         : `鉛直角 ${Math.round(180 - state.verticalAngle)}°`;
+      updateRealtimeHeight();
     }
 
     function angleFromPoint(clientX, clientY) {
@@ -921,10 +932,31 @@
       return state.verticalAngle == null ? null : 180 - state.verticalAngle;
     }
 
+    function calculateHeight(topAngle) {
+      if (state.heightBottomAngle == null || !Number.isFinite(state.heightDistance)) return null;
+      const toRadians = Math.PI / 180;
+      const bottomElevation = (90 - state.heightBottomAngle) * toRadians;
+      const topElevation = (90 - topAngle) * toRadians;
+      const height = Math.abs(
+        state.heightDistance * (Math.tan(topElevation) - Math.tan(bottomElevation))
+      );
+      return Number.isFinite(height) ? height : null;
+    }
+
+    // 下点を記録した後は、iPhoneを動かすたびに現在の照準位置までの高さを更新する。
+    function updateRealtimeHeight() {
+      if (state.heightStage !== "top") return;
+      const vertical = currentVerticalReading();
+      const height = vertical == null ? null : calculateHeight(vertical);
+      heightPrompt.classList.add("realtimeHeight");
+      heightPrompt.textContent = height == null ? "高さ ---m" : `高さ ${height.toFixed(2)}m`;
+    }
+
     function resetHeightMeasurement() {
       state.heightStage = "distance";
       state.heightDistance = 0;
       state.heightBottomAngle = null;
+      heightPrompt.classList.remove("realtimeHeight");
       heightPrompt.textContent = "目標物までの水平距離を入力してください";
       heightDistance.value = "";
       heightDistanceRow.hidden = false;
@@ -973,21 +1005,17 @@
       if (state.heightStage === "bottom") {
         state.heightBottomAngle = vertical;
         state.heightStage = "top";
-        heightPrompt.textContent = `下点 ${Math.round(vertical)}°を記録。中央線を一番上に合わせてください`;
+        updateRealtimeHeight();
         heightActionBtn.textContent = "上点を測定";
         return;
       }
 
       if (state.heightStage === "top") {
-        const toRadians = Math.PI / 180;
-        const bottomElevation = (90 - state.heightBottomAngle) * toRadians;
-        const topElevation = (90 - vertical) * toRadians;
-        const height = Math.abs(
-          state.heightDistance * (Math.tan(topElevation) - Math.tan(bottomElevation))
-        );
+        const height = calculateHeight(vertical);
         state.heightStage = "result";
+        heightPrompt.classList.remove("realtimeHeight");
         heightPrompt.textContent = `水平距離 ${state.heightDistance}m / 下点 ${Math.round(state.heightBottomAngle)}° / 上点 ${Math.round(vertical)}°`;
-        heightValue.textContent = Number.isFinite(height) ? `高さ ${height.toFixed(2)}m` : "測定できません";
+        heightValue.textContent = height == null ? "測定できません" : `高さ ${height.toFixed(2)}m`;
         heightValue.hidden = false;
         heightActionBtn.textContent = "もう一度";
         return;
